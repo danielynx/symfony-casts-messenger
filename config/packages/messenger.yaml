@@ -1,0 +1,56 @@
+framework:
+    messenger:
+        default_bus: command.bus
+        buses:
+            command.bus:
+                middleware:
+                    - App\Messenger\AuditMiddleware
+            event.bus:
+                default_middleware: allow_no_handlers
+                middleware:
+                    - App\Messenger\AuditMiddleware
+            query.bus: ~
+
+        # Uncomment this (and the failed transport below) to send failed messages to this transport for later handling.
+        failure_transport: failed
+
+        transports:
+            # https://symfony.com/doc/current/messenger.html#transport-configuration
+            async:
+                dsn: "%env(MESSENGER_TRANSPORT_DSN)%"
+                serializer: messenger.transport.symfony_serializer
+                retry_strategy:
+                    delay: 500
+                options:
+                    exchange:
+                        name: messages
+                        type: direct
+                        default_publish_routing_key: normal
+                    queues:
+                        messages_normal:
+                            binding_keys: [normal]
+            async_priority_high:
+                dsn: "%env(MESSENGER_TRANSPORT_DSN)%"
+                options:
+                    exchange:
+                        name: messages
+                        type: direct
+                        default_publish_routing_key: high
+                    queues:
+                        messages_high:
+                            binding_keys: [high]
+            external_messages:
+                dsn: "%env(MESSENGER_TRANSPORT_DSN)%"
+                serializer: App\Messenger\ExternalJsonMessageSerializer
+                options:
+                    auto_setup: false
+                    queues:
+                        messages_from_external: ~
+            failed: "doctrine://default?queue_name=failed"
+            # sync: 'sync://'
+
+        routing:
+            # Route your messages to the transports
+            'App\Message\Command\AddPonkaToImage': async_priority_high
+            'App\Message\Event\ImagePostDeletedEvent': async
+            # 'App\Message\Command\DeleteImagePost': [async, async_priority_high]
